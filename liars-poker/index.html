@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liar's Poker — Phil Tran</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0b;
+            --surface: #111113;
+            --surface-raised: #17171a;
+            --surface-high: #1c1c20;
+            --border: #1e1e22;
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --accent: #22d3ee;
+            --accent-dim: rgba(34, 211, 238, 0.08);
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 780px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        h1 .accent { color: var(--accent); }
+
+        .back-link {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        /* Score bar */
+        .scoreboard {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 1rem;
+            padding: 0.9rem 1.25rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .player {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .player.cpu { flex-direction: row-reverse; text-align: right; }
+
+        .player-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .player-name {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .player-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .vs {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+        }
+
+        /* Serial numbers */
+        .hand {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .hand-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.5rem;
+        }
+
+        .serial {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: 0.25rem;
+            color: var(--text);
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            gap: 0.2rem;
+        }
+
+        .serial .digit {
+            display: inline-block;
+            min-width: 1.4rem;
+            transition: color 0.4s, transform 0.4s;
+        }
+
+        .serial .digit.match {
+            color: var(--accent);
+            transform: translateY(-2px) scale(1.1);
+            text-shadow: 0 0 14px rgba(34, 211, 238, 0.4);
+        }
+
+        .serial.hidden .digit {
+            color: var(--text-dim);
+            opacity: 0.4;
+        }
+
+        /* Bid history */
+        .center-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .current-bid-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .current-bid-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .current-bid {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .current-bid.empty { color: var(--text-dim); font-size: 1rem; }
+
+        .history {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            max-height: 120px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .history::-webkit-scrollbar { width: 6px; }
+        .history::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .history-row {
+            display: flex;
+            gap: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .history-row .actor { min-width: 4rem; color: var(--text); font-weight: 500; }
+        .history-row.you .actor { color: var(--accent); }
+        .history-row.cpu .actor { color: var(--amber); }
+
+        .history-row.call { color: var(--red); font-weight: 500; }
+
+        /* Controls */
+        .controls {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .controls-header {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+
+        .controls-header .turn-indicator {
+            color: var(--accent);
+        }
+
+        .bid-builder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .qty-control {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .btn-step {
+            width: 34px; height: 34px;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-step:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }
+        .btn-step:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .qty-display {
+            min-width: 2.5rem;
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .of {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .digit-picker {
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-digit {
+            width: 40px; height: 40px;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.05rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-digit:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+        .btn-digit.selected { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .btn-digit:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        .action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .btn.primary:hover:not(:disabled) { background: #0ea5b7; border-color: #0ea5b7; }
+        .btn.danger { border-color: rgba(239, 68, 68, 0.3); color: var(--red); }
+        .btn.danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.08); border-color: var(--red); }
+
+        /* Rules */
+        .rules {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .rules strong { color: var(--text); font-weight: 500; }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(6px);
+        }
+
+        .modal-backdrop.active { display: flex; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 420px;
+            width: calc(100% - 2rem);
+            text-align: center;
+        }
+
+        .modal h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .modal .outcome {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+            letter-spacing: 0.05em;
+        }
+
+        .modal .final-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 0.75rem 0;
+        }
+
+        .modal .final-count.won { color: var(--green); }
+        .modal .final-count.lost { color: var(--red); }
+
+        .modal .reveal {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            background: var(--surface-raised);
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .reveal-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0;
+        }
+
+        .reveal-row .k { color: var(--text-dim); }
+        .reveal-row .v .digit.match { color: var(--accent); font-weight: 600; }
+
+        @media (max-width: 640px) {
+            .serial { font-size: 1.5rem; gap: 0.1rem; }
+            .serial .digit { min-width: 1.1rem; }
+            .btn-digit { width: 36px; height: 36px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="container">
+        <header>
+            <h1>Liar's Poker<span class="accent">.</span></h1>
+            <a href="/" class="back-link">← back</a>
+        </header>
+
+        <div class="scoreboard">
+            <div class="player you">
+                <div class="player-avatar">Y</div>
+                <div>
+                    <div class="player-name">You</div>
+                    <div class="player-score" id="score-you">0</div>
+                </div>
+            </div>
+            <div class="vs">FIRST TO 5</div>
+            <div class="player cpu">
+                <div class="player-avatar" style="color: var(--amber)">🤖</div>
+                <div>
+                    <div class="player-name" id="cpu-name">Bob</div>
+                    <div class="player-score" id="score-cpu">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hand">
+            <div class="hand-label">CPU's serial (hidden)</div>
+            <div class="serial hidden" id="cpu-hand">
+                <!-- filled dynamically -->
+            </div>
+        </div>
+
+        <div class="center-panel">
+            <div class="current-bid-box">
+                <div class="current-bid-label">Current bid</div>
+                <div class="current-bid empty" id="current-bid">—</div>
+            </div>
+            <div class="history" id="history"></div>
+        </div>
+
+        <div class="hand">
+            <div class="hand-label">Your serial</div>
+            <div class="serial" id="your-hand">
+                <!-- filled dynamically -->
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="controls-header">
+                <span id="turn-text" class="turn-indicator">Your turn</span>
+            </div>
+
+            <div class="bid-builder">
+                <div class="qty-control">
+                    <button class="btn-step" id="qty-down">−</button>
+                    <span class="qty-display" id="qty-display">1</span>
+                    <button class="btn-step" id="qty-up">+</button>
+                </div>
+                <span class="of">of digit</span>
+                <div class="digit-picker" id="digit-picker">
+                    <!-- 0-9 buttons -->
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button class="btn primary" id="btn-bid">Bid</button>
+                <button class="btn danger" id="btn-call">Call Liar</button>
+            </div>
+        </div>
+
+        <div class="rules">
+            <strong>How to play.</strong> Each of you has a 10-digit serial. You take turns bidding how many times a digit appears across <em>both</em> serials. Each bid must raise the count, or keep it and raise the digit. Don't believe the bid? Call liar. If the real count meets the bid, the bidder wins. Otherwise the caller wins. First to 5 rounds.
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="modal">
+        <div class="modal">
+            <h2 id="modal-title">Round over</h2>
+            <div class="outcome" id="modal-outcome">—</div>
+            <div class="final-count" id="modal-final">0</div>
+            <div class="reveal" id="modal-reveal"></div>
+            <button class="btn primary" id="btn-next" style="width:100%">Next round</button>
+        </div>
+    </div>
+
+    <script>
+    // ==================================================================
+    // Liar's Poker
+    // ==================================================================
+
+    const HAND_LEN = 10;
+    const WIN_TARGET = 5;
+    const CPU_NAMES = ['Bob', 'Stan', 'Lewie', 'Vinny', 'Gus', 'Mort', 'Sal', 'Ace'];
+
+    const state = {
+        yourHand: [],
+        cpuHand: [],
+        history: [],          // { actor: 'you'|'cpu', qty, face } or { actor: 'cpu'|'you', call: true }
+        currentBid: null,     // { qty, face, actor }
+        turn: 'you',          // 'you' | 'cpu'
+        scoreYou: 0,
+        scoreCpu: 0,
+        cpuName: 'Bob',
+        roundOver: false,
+        // UI state for bid builder
+        selQty: 1,
+        selFace: null,
+    };
+
+    // ------------------------------------------------------------------
+    // DOM
+    // ------------------------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+
+    function renderHand(el, digits, highlightFace = null, hidden = false) {
+        el.innerHTML = '';
+        el.classList.toggle('hidden', hidden);
+        for (const d of digits) {
+            const span = document.createElement('span');
+            span.className = 'digit';
+            span.textContent = hidden ? '?' : d;
+            if (!hidden && highlightFace !== null && d === highlightFace) {
+                span.classList.add('match');
+            }
+            el.appendChild(span);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Setup
+    // ------------------------------------------------------------------
+    function newGame() {
+        state.scoreYou = 0;
+        state.scoreCpu = 0;
+        state.cpuName = CPU_NAMES[Math.floor(Math.random() * CPU_NAMES.length)];
+        $('cpu-name').textContent = state.cpuName;
+        updateScore();
+        startRound(Math.random() < 0.5 ? 'you' : 'cpu');
+    }
+
+    function startRound(firstActor) {
+        state.yourHand = Array.from({ length: HAND_LEN }, () => Math.floor(Math.random() * 10));
+        state.cpuHand = Array.from({ length: HAND_LEN }, () => Math.floor(Math.random() * 10));
+        state.history = [];
+        state.currentBid = null;
+        state.turn = firstActor;
+        state.roundOver = false;
+        state.selQty = 1;
+        state.selFace = null;
+
+        renderHand($('your-hand'), state.yourHand);
+        renderHand($('cpu-hand'), state.cpuHand, null, true);
+
+        $('history').innerHTML = '';
+        $('current-bid').className = 'current-bid empty';
+        $('current-bid').textContent = '—';
+
+        renderBidBuilder();
+        updateTurn();
+
+        if (state.turn === 'cpu') {
+            setTimeout(cpuMove, 900);
+        }
+    }
+
+    function updateScore() {
+        $('score-you').textContent = state.scoreYou;
+        $('score-cpu').textContent = state.scoreCpu;
+    }
+
+    function updateTurn() {
+        const tEl = $('turn-text');
+        if (state.roundOver) {
+            tEl.textContent = 'Round over';
+            return;
+        }
+        if (state.turn === 'you') {
+            tEl.textContent = 'Your turn';
+            tEl.style.color = 'var(--accent)';
+        } else {
+            tEl.textContent = state.cpuName + ' is thinking…';
+            tEl.style.color = 'var(--amber)';
+        }
+        renderBidBuilder();
+    }
+
+    // ------------------------------------------------------------------
+    // Bid builder UI
+    // ------------------------------------------------------------------
+    function renderBidBuilder() {
+        const myTurn = state.turn === 'you' && !state.roundOver;
+
+        // Qty
+        const minQty = nextMinQty();
+        if (state.selQty < minQty) state.selQty = minQty;
+        if (state.selQty > 20) state.selQty = 20;
+        $('qty-display').textContent = state.selQty;
+        $('qty-down').disabled = !myTurn || state.selQty <= minQty;
+        $('qty-up').disabled = !myTurn || state.selQty >= 20;
+
+        // Digit buttons
+        const picker = $('digit-picker');
+        picker.innerHTML = '';
+        for (let d = 0; d <= 9; d++) {
+            const btn = document.createElement('button');
+            btn.className = 'btn-digit';
+            btn.textContent = d;
+            btn.disabled = !myTurn || !isBidAllowed(state.selQty, d);
+            if (state.selFace === d) btn.classList.add('selected');
+            btn.addEventListener('click', () => {
+                state.selFace = d;
+                renderBidBuilder();
+            });
+            picker.appendChild(btn);
+        }
+
+        // Buttons
+        $('btn-bid').disabled = !myTurn || state.selFace === null;
+        $('btn-call').disabled = !myTurn || state.currentBid === null;
+    }
+
+    function nextMinQty() {
+        return state.currentBid ? state.currentBid.qty : 1;
+    }
+
+    function isBidAllowed(qty, face) {
+        if (!state.currentBid) return true;
+        const { qty: cq, face: cf } = state.currentBid;
+        if (qty > cq) return true;
+        if (qty === cq && face > cf) return true;
+        return false;
+    }
+
+    // ------------------------------------------------------------------
+    // Your moves
+    // ------------------------------------------------------------------
+    $('qty-down').addEventListener('click', () => { state.selQty--; renderBidBuilder(); });
+    $('qty-up').addEventListener('click', () => { state.selQty++; renderBidBuilder(); });
+
+    $('btn-bid').addEventListener('click', () => {
+        if (state.turn !== 'you' || state.roundOver) return;
+        if (state.selFace === null) return;
+        if (!isBidAllowed(state.selQty, state.selFace)) return;
+        placeBid('you', state.selQty, state.selFace);
+        state.turn = 'cpu';
+        state.selFace = null;
+        updateTurn();
+        setTimeout(cpuMove, 900 + Math.random() * 600);
+    });
+
+    $('btn-call').addEventListener('click', () => {
+        if (state.turn !== 'you' || state.roundOver) return;
+        if (!state.currentBid) return;
+        resolveCall('you');
+    });
+
+    function placeBid(actor, qty, face) {
+        state.currentBid = { qty, face, actor };
+        state.history.push({ actor, qty, face });
+        renderHistory();
+        const el = $('current-bid');
+        el.className = 'current-bid';
+        el.textContent = `${qty} × ${face}`;
+    }
+
+    function renderHistory() {
+        const h = $('history');
+        h.innerHTML = '';
+        for (const ev of state.history) {
+            const row = document.createElement('div');
+            if (ev.call) {
+                row.className = 'history-row call';
+                row.innerHTML = `<span class="actor">${ev.actor === 'you' ? 'You' : state.cpuName}</span><span>calls liar!</span>`;
+            } else {
+                row.className = 'history-row ' + ev.actor;
+                row.innerHTML = `<span class="actor">${ev.actor === 'you' ? 'You' : state.cpuName}</span><span>bid ${ev.qty} × ${ev.face}</span>`;
+            }
+            h.appendChild(row);
+        }
+        h.scrollTop = h.scrollHeight;
+    }
+
+    // ------------------------------------------------------------------
+    // CPU strategy
+    // ------------------------------------------------------------------
+    function cpuMove() {
+        if (state.roundOver || state.turn !== 'cpu') return;
+
+        // CPU's expected total for each face: own count + E[opponent count]
+        // Opponent has HAND_LEN digits, each 0-9 uniform → E = HAND_LEN * 0.1 = 1
+        const ownCounts = countDigits(state.cpuHand);
+        const expTotal = ownCounts.map(c => c + HAND_LEN * 0.1);
+
+        if (!state.currentBid) {
+            // Open with a modest bid: pick a face with high own count
+            const bestFace = argmax(ownCounts);
+            const qty = Math.max(1, Math.round(expTotal[bestFace] - 0.5));
+            placeBid('cpu', qty, bestFace);
+            state.turn = 'you';
+            updateTurn();
+            return;
+        }
+
+        const { qty, face } = state.currentBid;
+        const e = expTotal[face];
+
+        // Call probability grows as bid exceeds expectation
+        // margin > 1.2 → almost always call; margin < 0.3 → rarely
+        const margin = qty - e;
+        const callProb = sigmoid((margin - 0.7) * 2.5);
+
+        if (Math.random() < callProb) {
+            resolveCall('cpu');
+            return;
+        }
+
+        // Otherwise raise. Find a raise with positive expected edge.
+        // Candidates: (qty, face+1..9) or (qty+1, any face)
+        const candidates = [];
+        for (let f = face + 1; f <= 9; f++) {
+            const edge = expTotal[f] - qty;
+            candidates.push({ q: qty, f, edge });
+        }
+        for (let q = qty + 1; q <= qty + 2 && q <= 20; q++) {
+            for (let f = 0; f <= 9; f++) {
+                const edge = expTotal[f] - q;
+                candidates.push({ q, f, edge });
+            }
+        }
+        // Pick best edge among bids where edge isn't too negative (bluff zone)
+        candidates.sort((a, b) => b.edge - a.edge);
+        const best = candidates[0];
+
+        // If even the best bid is badly underwater, call instead
+        if (best.edge < -1.0) {
+            resolveCall('cpu');
+            return;
+        }
+
+        placeBid('cpu', best.q, best.f);
+        state.turn = 'you';
+        updateTurn();
+    }
+
+    function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
+    function argmax(arr) {
+        let bi = 0, bv = -Infinity;
+        for (let i = 0; i < arr.length; i++) if (arr[i] > bv) { bv = arr[i]; bi = i; }
+        return bi;
+    }
+    function countDigits(hand) {
+        const c = new Array(10).fill(0);
+        for (const d of hand) c[d]++;
+        return c;
+    }
+
+    // ------------------------------------------------------------------
+    // Resolve call
+    // ------------------------------------------------------------------
+    function resolveCall(caller) {
+        state.roundOver = true;
+        state.history.push({ actor: caller, call: true });
+        renderHistory();
+
+        const bid = state.currentBid;
+        const combined = [...state.yourHand, ...state.cpuHand];
+        const actual = combined.filter(d => d === bid.face).length;
+
+        // Reveal both hands with highlights
+        renderHand($('your-hand'), state.yourHand, bid.face);
+        renderHand($('cpu-hand'), state.cpuHand, bid.face);
+
+        // Bidder wins if actual >= qty, else caller wins
+        const bidderWon = actual >= bid.qty;
+        const winner = bidderWon ? bid.actor : caller;
+
+        if (winner === 'you') state.scoreYou++;
+        else state.scoreCpu++;
+        updateScore();
+
+        // Modal
+        const modal = $('modal');
+        $('modal-title').textContent = winner === 'you' ? 'You win!' : state.cpuName + ' wins';
+        $('modal-outcome').textContent = bidderWon
+            ? `Bid of ${bid.qty} × ${bid.face} was good — actual count ${actual}`
+            : `Bid of ${bid.qty} × ${bid.face} was too high — actual count ${actual}`;
+        const fEl = $('modal-final');
+        fEl.textContent = actual + ' × ' + bid.face;
+        fEl.className = 'final-count ' + (winner === 'you' ? 'won' : 'lost');
+
+        const revealHtml = (label, hand) => {
+            const spans = hand.map(d => d === bid.face ? `<span class="digit match">${d}</span>` : `<span class="digit">${d}</span>`).join('');
+            return `<div class="reveal-row"><span class="k">${label}</span><span class="v">${spans}</span></div>`;
+        };
+        $('modal-reveal').innerHTML = revealHtml('Your hand', state.yourHand) + revealHtml(state.cpuName, state.cpuHand);
+
+        // Game over?
+        const gameOver = state.scoreYou >= WIN_TARGET || state.scoreCpu >= WIN_TARGET;
+        const btn = $('btn-next');
+        if (gameOver) {
+            const iWon = state.scoreYou > state.scoreCpu;
+            $('modal-title').textContent = iWon ? 'Game over — you win!' : 'Game over — ' + state.cpuName + ' wins';
+            btn.textContent = 'New game';
+        } else {
+            btn.textContent = 'Next round';
+        }
+
+        modal.classList.add('active');
+        updateTurn();
+    }
+
+    $('btn-next').addEventListener('click', () => {
+        $('modal').classList.remove('active');
+        const gameOver = state.scoreYou >= WIN_TARGET || state.scoreCpu >= WIN_TARGET;
+        if (gameOver) {
+            newGame();
+        } else {
+            // Loser of previous round opens the next
+            const loser = state.currentBid
+                ? (state.history[state.history.length - 1].actor === 'you'
+                   ? (state.history[state.history.length - 2]?.actor ?? 'cpu')
+                   : 'you')
+                : 'you';
+            // Simpler: whoever lost this round opens next
+            const lastCall = state.history[state.history.length - 1];
+            const bid = state.currentBid;
+            const actual = [...state.yourHand, ...state.cpuHand].filter(d => d === bid.face).length;
+            const bidderWon = actual >= bid.qty;
+            const winner = bidderWon ? bid.actor : lastCall.actor;
+            const nextOpener = winner === 'you' ? 'cpu' : 'you';
+            startRound(nextOpener);
+        }
+    });
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+        if (state.roundOver || state.turn !== 'you') return;
+        const k = e.key;
+        if (k >= '0' && k <= '9') {
+            const d = parseInt(k);
+            if (isBidAllowed(state.selQty, d)) {
+                state.selFace = d;
+                renderBidBuilder();
+            }
+        } else if (k === 'ArrowUp') { state.selQty++; renderBidBuilder(); e.preventDefault(); }
+        else if (k === 'ArrowDown') { state.selQty--; renderBidBuilder(); e.preventDefault(); }
+        else if (k === 'Enter' && state.selFace !== null) { $('btn-bid').click(); }
+        else if (k === 'c' || k === 'C') { $('btn-call').click(); }
+    });
+
+    // Go
+    newGame();
+    </script>
+</body>
+</html>
