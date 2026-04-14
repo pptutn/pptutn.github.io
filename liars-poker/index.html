@@ -183,6 +183,32 @@
             text-shadow: 0 0 14px rgba(34, 211, 238, 0.4);
         }
 
+        .sort-row {
+            display: flex;
+            justify-content: center;
+            margin-top: 0.6rem;
+        }
+
+        .btn-sort {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.4rem 0.8rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-sort:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sort[aria-pressed="true"] {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
         .serial.hidden .digit {
             color: var(--text-dim);
             opacity: 0.4;
@@ -512,6 +538,9 @@
             <div class="serial" id="your-hand">
                 <!-- filled dynamically -->
             </div>
+            <div class="sort-row">
+                <button class="btn-sort" id="btn-sort" aria-pressed="false">Sort ↑</button>
+            </div>
         </div>
 
         <div class="controls">
@@ -574,6 +603,8 @@
         // UI state for bid builder
         selQty: 1,
         selFace: null,
+        sortHand: false,
+        lastRevealFace: null,
     };
 
     // ------------------------------------------------------------------
@@ -581,10 +612,11 @@
     // ------------------------------------------------------------------
     const $ = (id) => document.getElementById(id);
 
-    function renderHand(el, digits, highlightFace = null, hidden = false) {
+    function renderHand(el, digits, highlightFace = null, hidden = false, sorted = false) {
         el.innerHTML = '';
         el.classList.toggle('hidden', hidden);
-        for (const d of digits) {
+        const shown = sorted && !hidden ? [...digits].sort((a, b) => a - b) : digits;
+        for (const d of shown) {
             const span = document.createElement('span');
             span.className = 'digit';
             span.textContent = hidden ? '?' : d;
@@ -617,7 +649,8 @@
         state.selQty = 1;
         state.selFace = null;
 
-        renderHand($('your-hand'), state.yourHand);
+        state.lastRevealFace = null;
+        renderHand($('your-hand'), state.yourHand, null, false, state.sortHand);
         renderHand($('cpu-hand'), state.cpuHand, null, true);
 
         $('history').innerHTML = '';
@@ -703,6 +736,13 @@
     // ------------------------------------------------------------------
     // Your moves
     // ------------------------------------------------------------------
+    $('btn-sort').addEventListener('click', () => {
+        state.sortHand = !state.sortHand;
+        $('btn-sort').setAttribute('aria-pressed', state.sortHand ? 'true' : 'false');
+        $('btn-sort').textContent = state.sortHand ? 'Unsort' : 'Sort ↑';
+        renderHand($('your-hand'), state.yourHand, state.lastRevealFace, false, state.sortHand);
+    });
+
     $('qty-down').addEventListener('click', () => { state.selQty--; renderBidBuilder(); });
     $('qty-up').addEventListener('click', () => { state.selQty++; renderBidBuilder(); });
 
@@ -836,7 +876,8 @@
         const actual = combined.filter(d => d === bid.face).length;
 
         // Reveal both hands with highlights
-        renderHand($('your-hand'), state.yourHand, bid.face);
+        state.lastRevealFace = bid.face;
+        renderHand($('your-hand'), state.yourHand, bid.face, false, state.sortHand);
         renderHand($('cpu-hand'), state.cpuHand, bid.face);
 
         // Bidder wins if actual >= qty, else caller wins
