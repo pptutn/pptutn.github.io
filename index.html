@@ -31,7 +31,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            padding: 1.5rem 0;
         }
 
         /* Subtle animated grid background */
@@ -217,9 +217,12 @@
 
         /* Responsive */
         @media (max-width: 640px) {
+            body { align-items: flex-start; padding: 1rem 0; }
             h1 { font-size: 2.5rem; }
             .stats { flex-direction: column; gap: 1rem; }
             .container { padding: 1.5rem; }
+            .links { flex-wrap: wrap; }
+            .link { flex: 1 1 45%; justify-content: center; }
         }
     </style>
 </head>

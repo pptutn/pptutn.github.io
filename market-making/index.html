@@ -84,7 +84,7 @@
         /* Stats */
         .stats {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 0.4rem;
             padding: 0.75rem;
             background: var(--surface);
@@ -485,7 +485,7 @@
         /* Mobile */
         @media (max-width: 600px) {
             body { padding: 0.75rem; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
+            .stats { grid-template-columns: repeat(3, 1fr); }
             canvas { height: 220px; }
             .log-wrap { grid-template-columns: 1fr; }
             .actions { grid-template-columns: 1fr 1fr; }
@@ -510,6 +510,10 @@
             <div class="stat">
                 <span class="stat-label">Time</span>
                 <span class="stat-value accent" id="stat-time">2:00</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Mid</span>
+                <span class="stat-value" id="stat-mid">100.00</span>
             </div>
             <div class="stat">
                 <span class="stat-label">P&amp;L</span>
@@ -619,13 +623,14 @@
     // Market Making Game — candlestick edition, 5s ticks
     // ==================================================================
 
-    const TICK_MS = 5000;                // 5 seconds per candle
+    const TICK_MS = 1000;                // 1 second per candle
     const ROUND_SECONDS = 120;
-    const TOTAL_TICKS = ROUND_SECONDS / (TICK_MS / 1000);  // 24 candles
+    const TOTAL_TICKS = ROUND_SECONDS / (TICK_MS / 1000);  // 120 candles
+    const CHART_WINDOW = 60;             // show last N candles on the chart
 
-    const VOL_PER_TICK = 0.35;           // close-to-close stddev per 5s tick
-    const WICK_VOL = 0.25;               // extra wick extension (half-normal)
-    const JUMP_PROB = 0.025;             // small chance of gap
+    const VOL_PER_TICK = 0.16;           // close-to-close stddev per 1s tick
+    const WICK_VOL = 0.11;               // extra wick extension (half-normal)
+    const JUMP_PROB = 0.006;             // small chance of gap
     const JUMP_SIZE = 1.2;
 
     const INV_LIMIT = 15;
@@ -868,6 +873,8 @@
         invEl.className = 'stat-value ' + (Math.abs(state.inventory) >= INV_LIMIT - 2 ? 'amber' : '');
 
         $('stat-trades').textContent = state.tradeCount;
+
+        $('stat-mid').textContent = fair.toFixed(2);
     }
 
     // ------------------------------------------------------------------
@@ -883,7 +890,9 @@
         const plotW = W - pad.l - pad.r;
         const plotH = H - pad.t - pad.b;
 
-        const candles = state.candles;
+        const allCandles = state.candles;
+        const startIdx = Math.max(0, allCandles.length - CHART_WINDOW);
+        const candles = allCandles.slice(startIdx);
 
         // compute y-range
         let lo, hi;
@@ -900,8 +909,8 @@
 
         drawGrid(pad, plotW, plotH, lo, hi);
 
-        const slotW = plotW / TOTAL_TICKS;
-        const candleW = Math.max(4, slotW * 0.7);
+        const slotW = plotW / CHART_WINDOW;
+        const candleW = Math.max(3, slotW * 0.7);
 
         const yAt = (v) => pad.t + (1 - (v - lo) / (hi - lo)) * plotH;
 
@@ -961,7 +970,8 @@
 
         // Trade markers (small squares on candles)
         for (const t of state.trades) {
-            const xCenter = pad.l + (t.candleIdx + 0.5) * slotW;
+            if (t.candleIdx < startIdx) continue;
+            const xCenter = pad.l + (t.candleIdx - startIdx + 0.5) * slotW;
             const y = yAt(t.price);
             ctx.fillStyle = t.side === 'buy' ? '#22c55e' : '#ef4444';
             ctx.beginPath();
