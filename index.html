@@ -67,16 +67,39 @@
         }
 
         .pulse-dot {
-            width: 6px;
-            height: 6px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
             background: var(--accent);
-            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.55);
+            animation: pulse 1.4s ease-out infinite;
+            flex-shrink: 0;
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.4); }
-            50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(34, 211, 238, 0); }
+            0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.6); }
+            70%  { transform: scale(1);    box-shadow: 0 0 0 8px rgba(34, 211, 238, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+        }
+
+        .pulse-dot.tick {
+            animation: tick 0.45s ease-out;
+        }
+
+        @keyframes tick {
+            0%   { background: var(--accent); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.9); transform: scale(1.6); }
+            60%  { background: #a5f3fc; }
+            100% { background: var(--accent); box-shadow: 0 0 0 10px rgba(34, 211, 238, 0); transform: scale(1); }
+        }
+
+        .status-text {
+            display: inline-block;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .status-text.swap {
+            opacity: 0;
+            transform: translateY(-3px);
         }
 
         h1 {
@@ -205,8 +228,8 @@
 
     <div class="container">
         <div class="pulse-line">
-            <span class="pulse-dot"></span>
-            <span>AVAILABLE FOR OPPORTUNITIES</span>
+            <span class="pulse-dot" id="pulse-dot"></span>
+            <span class="status-text" id="status-text">HEARTBEAT OK</span>
         </div>
 
         <h1>Phil<span class="accent">.</span></h1>
@@ -261,5 +284,34 @@
             </a>
         </div>
     </div>
+
+    <script>
+        const statuses = [
+            'HEARTBEAT OK',
+            'CONNECTED TO EXCHANGE',
+            'ONLINE',
+            'MARKET DATA STREAMING',
+            'FIX SESSION ACTIVE',
+            'ORDER BOOK SYNCED',
+            'CLOCK SYNCED · PTP',
+            'RISK CHECKS PASSED',
+            'LATENCY: 0.8µs',
+        ];
+        const textEl = document.getElementById('status-text');
+        const dotEl = document.getElementById('pulse-dot');
+        let idx = 0;
+        setInterval(() => {
+            textEl.classList.add('swap');
+            setTimeout(() => {
+                idx = (idx + 1) % statuses.length;
+                textEl.textContent = statuses[idx];
+                textEl.classList.remove('swap');
+                dotEl.classList.remove('tick');
+                // force reflow so the animation replays
+                void dotEl.offsetWidth;
+                dotEl.classList.add('tick');
+            }, 300);
+        }, 2800);
+    </script>
 </body>
 </html>
