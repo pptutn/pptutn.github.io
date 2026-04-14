@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Maker — Phil Tran</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0b;
+            --surface: #111113;
+            --surface-raised: #17171a;
+            --border: #1e1e22;
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --accent: #22d3ee;
+            --accent-dim: rgba(34, 211, 238, 0.08);
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 960px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        h1 .accent { color: var(--accent); }
+
+        .back-link {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: var(--accent); }
+
+        /* Stats bar */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.5rem;
+            padding: 0.9rem 1.1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .stat-label {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-value.accent { color: var(--accent); }
+        .stat-value.green { color: var(--green); }
+        .stat-value.red { color: var(--red); }
+        .stat-value.amber { color: var(--amber); }
+
+        /* Chart */
+        .chart-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 340px;
+        }
+
+        .chart-legend {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            gap: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            pointer-events: none;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .legend-dot {
+            width: 8px; height: 8px;
+            border-radius: 2px;
+        }
+
+        /* Controls */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            align-items: center;
+        }
+
+        .quote-side {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .quote-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .quote-row {
+            display: flex;
+            gap: 0.4rem;
+            align-items: center;
+        }
+
+        .btn-adjust {
+            width: 32px; height: 32px;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .btn-adjust:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .btn-adjust:active { transform: scale(0.95); }
+
+        .price-input {
+            flex: 1;
+            padding: 0.55rem 0.75rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .bid-input { color: var(--green); border-color: rgba(34, 197, 94, 0.2); }
+        .ask-input { color: var(--red); border-color: rgba(239, 68, 68, 0.2); }
+
+        .price-input:focus { outline: none; border-color: var(--accent); }
+
+        .size-input {
+            width: 48px;
+            padding: 0.55rem 0.4rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.65rem 1.25rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            min-width: 110px;
+        }
+
+        .btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+        .btn.primary:hover { background: #0ea5b7; border-color: #0ea5b7; }
+
+        /* Trade log */
+        .log-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .panel h3 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+
+        .trade-log {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            height: 160px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+
+        .trade-log::-webkit-scrollbar { width: 6px; }
+        .trade-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .trade-entry {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.2rem 0;
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .trade-entry.buy .side { color: var(--green); }
+        .trade-entry.sell .side { color: var(--red); }
+        .trade-entry .px { color: var(--text); }
+
+        .how-to {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .how-to kbd {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            padding: 0.1rem 0.4rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--accent);
+        }
+
+        .how-to strong { color: var(--text); font-weight: 500; }
+
+        /* Game over modal */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(6px);
+        }
+
+        .modal-backdrop.active { display: flex; }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 420px;
+            width: calc(100% - 2rem);
+            text-align: center;
+        }
+
+        .modal h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .final-pnl {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3rem;
+            font-weight: 600;
+            margin: 1rem 0 0.25rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .final-rank {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .final-breakdown {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .final-breakdown .k { color: var(--text-dim); }
+        .final-breakdown .v { text-align: right; font-variant-numeric: tabular-nums; }
+
+        @media (max-width: 720px) {
+            .stats { grid-template-columns: repeat(3, 1fr); }
+            .controls { grid-template-columns: 1fr; }
+            .log-wrap { grid-template-columns: 1fr; }
+            canvas { height: 260px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <div class="container">
+        <header>
+            <h1>Market Maker<span class="accent">.</span></h1>
+            <a href="/" class="back-link">← back</a>
+        </header>
+
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">Time</span>
+                <span class="stat-value accent" id="stat-time">60.0s</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Fair</span>
+                <span class="stat-value" id="stat-fair">100.00</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">P&amp;L</span>
+                <span class="stat-value" id="stat-pnl">$0.00</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Inventory</span>
+                <span class="stat-value" id="stat-inv">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Trades</span>
+                <span class="stat-value" id="stat-trades">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Spread</span>
+                <span class="stat-value" id="stat-spread">—</span>
+            </div>
+        </div>
+
+        <div class="chart-wrap">
+            <canvas id="chart"></canvas>
+            <div class="chart-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div>Fair</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Bid</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Ask</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="quote-side">
+                <span class="quote-label">Bid (you buy)</span>
+                <div class="quote-row">
+                    <button class="btn-adjust" data-act="bid-down">−</button>
+                    <input class="price-input bid-input" id="bid-px" type="number" step="0.01" value="99.90">
+                    <button class="btn-adjust" data-act="bid-up">+</button>
+                    <input class="size-input" id="bid-sz" type="number" min="1" max="10" value="1">
+                </div>
+            </div>
+
+            <div class="quote-side">
+                <span class="quote-label">Ask (you sell)</span>
+                <div class="quote-row">
+                    <button class="btn-adjust" data-act="ask-down">−</button>
+                    <input class="price-input ask-input" id="ask-px" type="number" step="0.01" value="100.10">
+                    <button class="btn-adjust" data-act="ask-up">+</button>
+                    <input class="size-input" id="ask-sz" type="number" min="1" max="10" value="1">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn primary" id="btn-start">Start</button>
+                <button class="btn" id="btn-reset">Reset</button>
+            </div>
+        </div>
+
+        <div class="log-wrap">
+            <div class="panel">
+                <h3>Trade Log</h3>
+                <div class="trade-log" id="trade-log"></div>
+            </div>
+
+            <div class="panel">
+                <h3>How to play</h3>
+                <div class="how-to">
+                    You're a market maker. Post a <strong>bid</strong> (buy price) and <strong>ask</strong> (sell price) around the fair price. Random orders hit your quotes — <strong>tighter spread = more fills but less edge</strong>. Earn the spread, but watch inventory: large positions expose you to price moves.<br><br>
+                    <kbd>Q</kbd>/<kbd>A</kbd> bid − / +  ·  <kbd>E</kbd>/<kbd>D</kbd> ask − / +  ·  <kbd>W</kbd>/<kbd>S</kbd> widen/tighten  ·  <kbd>Space</kbd> pause
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="modal">
+        <div class="modal">
+            <h2>Round over</h2>
+            <div class="final-pnl" id="final-pnl">$0.00</div>
+            <div class="final-rank" id="final-rank">— RANK —</div>
+            <div class="final-breakdown">
+                <div class="k">Trades</div><div class="v" id="final-trades">0</div>
+                <div class="k">Avg edge</div><div class="v" id="final-edge">$0.00</div>
+                <div class="k">Max inv</div><div class="v" id="final-inv">0</div>
+                <div class="k">Final inv</div><div class="v" id="final-final-inv">0</div>
+            </div>
+            <button class="btn primary" id="btn-play-again" style="width:100%">Play again</button>
+        </div>
+    </div>
+
+    <script>
+    // ==================================================================
+    // Market Making Game
+    // ==================================================================
+
+    const TICK_MS = 200;                 // 5 ticks per second
+    const ROUND_SECONDS = 60;
+    const TOTAL_TICKS = (ROUND_SECONDS * 1000) / TICK_MS;
+
+    const VOL_PER_TICK = 0.08;           // fair price stddev per tick
+    const DRIFT = 0;                     // no systematic drift
+    const JUMP_PROB = 0.008;             // small chance of a jump
+    const JUMP_SIZE = 0.8;
+
+    const BASE_ARRIVAL = 0.32;           // base per-tick fill probability at zero distance
+    const DECAY = 9.0;                   // exp decay per dollar distance
+    const INV_LIMIT = 15;                // inventory hard cap
+
+    // ------------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------------
+    const state = {
+        running: false,
+        paused: false,
+        tick: 0,
+        fair: 100.0,
+        priceHistory: [],      // [{fair, bid, ask}]
+        trades: [],            // {tick, side: 'buy'|'sell', price, size}
+        cash: 0,
+        inventory: 0,
+        maxAbsInv: 0,
+        tradeCount: 0,
+        quotes: { bid: 99.90, ask: 100.10, bidSize: 1, askSize: 1 },
+        loop: null,
+    };
+
+    // ------------------------------------------------------------------
+    // DOM
+    // ------------------------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+    const canvas = $('chart');
+    const ctx = canvas.getContext('2d');
+
+    const bidPxEl = $('bid-px');
+    const askPxEl = $('ask-px');
+    const bidSzEl = $('bid-sz');
+    const askSzEl = $('ask-sz');
+
+    function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // ------------------------------------------------------------------
+    // Random helpers
+    // ------------------------------------------------------------------
+    function gaussian() {
+        // Box-Muller
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    // ------------------------------------------------------------------
+    // Game loop
+    // ------------------------------------------------------------------
+    function startGame() {
+        if (state.running && !state.paused) return;
+        if (!state.running) {
+            resetState();
+            state.running = true;
+            $('btn-start').textContent = 'Pause';
+        } else if (state.paused) {
+            state.paused = false;
+            $('btn-start').textContent = 'Pause';
+        }
+        state.loop = setInterval(tick, TICK_MS);
+    }
+
+    function pauseGame() {
+        if (!state.running) return;
+        state.paused = true;
+        $('btn-start').textContent = 'Resume';
+        clearInterval(state.loop);
+        state.loop = null;
+    }
+
+    function resetState() {
+        state.tick = 0;
+        state.fair = 100.0 + (Math.random() - 0.5) * 2;
+        state.priceHistory = [];
+        state.trades = [];
+        state.cash = 0;
+        state.inventory = 0;
+        state.maxAbsInv = 0;
+        state.tradeCount = 0;
+        $('trade-log').innerHTML = '';
+    }
+
+    function fullReset() {
+        if (state.loop) clearInterval(state.loop);
+        state.loop = null;
+        state.running = false;
+        state.paused = false;
+        resetState();
+        $('btn-start').textContent = 'Start';
+        $('modal').classList.remove('active');
+        updateStats();
+        draw();
+    }
+
+    function tick() {
+        // 1. Advance fair price
+        state.fair += DRIFT + gaussian() * VOL_PER_TICK;
+        if (Math.random() < JUMP_PROB) {
+            state.fair += (Math.random() < 0.5 ? -1 : 1) * JUMP_SIZE * (0.5 + Math.random());
+        }
+
+        // 2. Read quotes from inputs
+        readQuotes();
+
+        const { bid, ask, bidSize, askSize } = state.quotes;
+
+        // 3. Process order arrivals on each side
+        // Market buy arrives → hits your ask (you sell)
+        const askDist = Math.max(0, ask - state.fair);
+        const askFillProb = BASE_ARRIVAL * Math.exp(-askDist * DECAY);
+        if (state.inventory > -INV_LIMIT && Math.random() < askFillProb) {
+            executeTrade('sell', ask, Math.min(askSize, 3));
+        }
+
+        // Market sell arrives → hits your bid (you buy)
+        const bidDist = Math.max(0, state.fair - bid);
+        const bidFillProb = BASE_ARRIVAL * Math.exp(-bidDist * DECAY);
+        if (state.inventory < INV_LIMIT && Math.random() < bidFillProb) {
+            executeTrade('buy', bid, Math.min(bidSize, 3));
+        }
+
+        // 4. Record history
+        state.priceHistory.push({ fair: state.fair, bid, ask });
+        if (state.priceHistory.length > TOTAL_TICKS) state.priceHistory.shift();
+
+        state.tick++;
+        updateStats();
+        draw();
+
+        if (state.tick >= TOTAL_TICKS) endGame();
+    }
+
+    function executeTrade(side, price, size) {
+        if (side === 'sell') {
+            state.inventory -= size;
+            state.cash += price * size;
+        } else {
+            state.inventory += size;
+            state.cash -= price * size;
+        }
+        state.tradeCount++;
+        state.maxAbsInv = Math.max(state.maxAbsInv, Math.abs(state.inventory));
+        state.trades.push({ tick: state.tick, side, price, size });
+        logTrade(side, price, size);
+    }
+
+    function logTrade(side, price, size) {
+        const log = $('trade-log');
+        const entry = document.createElement('div');
+        entry.className = 'trade-entry ' + side;
+        entry.innerHTML = `
+            <span class="side">${side === 'buy' ? 'BOT' : 'SLD'} ${size}</span>
+            <span class="px">@ ${price.toFixed(2)}</span>
+        `;
+        log.insertBefore(entry, log.firstChild);
+        while (log.children.length > 40) log.removeChild(log.lastChild);
+    }
+
+    // ------------------------------------------------------------------
+    // Quote reading (clamp sizes, validate prices)
+    // ------------------------------------------------------------------
+    function readQuotes() {
+        let bid = parseFloat(bidPxEl.value);
+        let ask = parseFloat(askPxEl.value);
+        let bidSize = Math.max(1, Math.min(10, parseInt(bidSzEl.value) || 1));
+        let askSize = Math.max(1, Math.min(10, parseInt(askSzEl.value) || 1));
+
+        if (isNaN(bid)) bid = state.fair - 0.10;
+        if (isNaN(ask)) ask = state.fair + 0.10;
+
+        // Bid must be < ask. If crossed, snap to fair ± 0.01
+        if (bid >= ask) {
+            bid = state.fair - 0.01;
+            ask = state.fair + 0.01;
+            bidPxEl.value = bid.toFixed(2);
+            askPxEl.value = ask.toFixed(2);
+        }
+
+        state.quotes = { bid, ask, bidSize, askSize };
+    }
+
+    // ------------------------------------------------------------------
+    // Stats display
+    // ------------------------------------------------------------------
+    function updateStats() {
+        const pnl = state.cash + state.inventory * state.fair;
+        const timeLeft = Math.max(0, (TOTAL_TICKS - state.tick) * TICK_MS / 1000);
+
+        $('stat-time').textContent = timeLeft.toFixed(1) + 's';
+        $('stat-fair').textContent = state.fair.toFixed(2);
+
+        const pnlEl = $('stat-pnl');
+        pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+        pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'green' : 'red');
+
+        const invEl = $('stat-inv');
+        invEl.textContent = (state.inventory > 0 ? '+' : '') + state.inventory;
+        invEl.className = 'stat-value ' + (Math.abs(state.inventory) >= INV_LIMIT - 2 ? 'amber' : '');
+
+        $('stat-trades').textContent = state.tradeCount;
+
+        const spread = state.quotes.ask - state.quotes.bid;
+        $('stat-spread').textContent = isFinite(spread) ? '$' + spread.toFixed(2) : '—';
+    }
+
+    // ------------------------------------------------------------------
+    // Chart drawing
+    // ------------------------------------------------------------------
+    function draw() {
+        const rect = canvas.getBoundingClientRect();
+        const W = rect.width;
+        const H = rect.height;
+
+        ctx.clearRect(0, 0, W, H);
+
+        const pad = { l: 48, r: 12, t: 16, b: 20 };
+        const plotW = W - pad.l - pad.r;
+        const plotH = H - pad.t - pad.b;
+
+        const history = state.priceHistory;
+        if (history.length === 0) {
+            // show placeholder with just fair
+            drawGrid(pad, plotW, plotH, state.fair - 1, state.fair + 1);
+            return;
+        }
+
+        // y-range: from all fair/bid/ask values
+        let lo = Infinity, hi = -Infinity;
+        for (const p of history) {
+            lo = Math.min(lo, p.fair, p.bid, p.ask);
+            hi = Math.max(hi, p.fair, p.bid, p.ask);
+        }
+        const padY = Math.max(0.3, (hi - lo) * 0.15);
+        lo -= padY; hi += padY;
+
+        drawGrid(pad, plotW, plotH, lo, hi);
+
+        // x: tick index → px
+        const n = history.length;
+        const xAt = (i) => pad.l + (i / Math.max(n - 1, 1)) * plotW;
+        const yAt = (v) => pad.t + (1 - (v - lo) / (hi - lo)) * plotH;
+
+        // Bid/ask as filled band
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = '#22d3ee';
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) ctx.lineTo(xAt(i), yAt(history[i].ask));
+        for (let i = n - 1; i >= 0; i--) ctx.lineTo(xAt(i), yAt(history[i].bid));
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Bid line
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const x = xAt(i), y = yAt(history[i].bid);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Ask line
+        ctx.strokeStyle = '#ef4444';
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const x = xAt(i), y = yAt(history[i].ask);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Fair line (on top)
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const x = xAt(i), y = yAt(history[i].fair);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Trade markers
+        for (const t of state.trades) {
+            const xi = t.tick - Math.max(0, state.tick - TOTAL_TICKS);
+            if (xi < 0 || xi >= n) continue;
+            const x = xAt(xi);
+            const y = yAt(t.price);
+            ctx.fillStyle = t.side === 'buy' ? '#22c55e' : '#ef4444';
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function drawGrid(pad, plotW, plotH, lo, hi) {
+        ctx.strokeStyle = '#1e1e22';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#71717a';
+        ctx.font = '11px JetBrains Mono, monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        const lines = 5;
+        for (let i = 0; i <= lines; i++) {
+            const v = lo + (hi - lo) * (i / lines);
+            const y = pad.t + (1 - i / lines) * plotH;
+            ctx.beginPath();
+            ctx.moveTo(pad.l, y);
+            ctx.lineTo(pad.l + plotW, y);
+            ctx.stroke();
+            ctx.fillText(v.toFixed(2), pad.l - 6, y);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // End of round
+    // ------------------------------------------------------------------
+    function endGame() {
+        clearInterval(state.loop);
+        state.loop = null;
+        state.running = false;
+        $('btn-start').textContent = 'Start';
+
+        const pnl = state.cash + state.inventory * state.fair;
+        const avgEdge = state.tradeCount > 0 ? pnl / state.tradeCount : 0;
+        const rank = getRank(pnl);
+
+        const pnlEl = $('final-pnl');
+        pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+        pnlEl.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+        $('final-rank').textContent = rank;
+        $('final-trades').textContent = state.tradeCount;
+        $('final-edge').textContent = '$' + avgEdge.toFixed(3);
+        $('final-inv').textContent = state.maxAbsInv;
+        $('final-final-inv').textContent = state.inventory;
+
+        $('modal').classList.add('active');
+    }
+
+    function getRank(pnl) {
+        if (pnl >= 15) return 'ALPHA GENERATOR';
+        if (pnl >= 8) return 'TIGHT QUOTER';
+        if (pnl >= 3) return 'IN THE BLACK';
+        if (pnl >= 0) return 'BREAK-EVEN';
+        if (pnl >= -5) return 'ADVERSELY SELECTED';
+        return 'PAPER HANDS';
+    }
+
+    // ------------------------------------------------------------------
+    // Controls
+    // ------------------------------------------------------------------
+    function adjustBid(delta) {
+        bidPxEl.value = (parseFloat(bidPxEl.value) + delta).toFixed(2);
+    }
+    function adjustAsk(delta) {
+        askPxEl.value = (parseFloat(askPxEl.value) + delta).toFixed(2);
+    }
+
+    document.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const act = btn.dataset.act;
+            if (act === 'bid-up') adjustBid(0.01);
+            else if (act === 'bid-down') adjustBid(-0.01);
+            else if (act === 'ask-up') adjustAsk(0.01);
+            else if (act === 'ask-down') adjustAsk(-0.01);
+        });
+    });
+
+    $('btn-start').addEventListener('click', () => {
+        if (!state.running) startGame();
+        else if (state.paused) startGame();
+        else pauseGame();
+    });
+
+    $('btn-reset').addEventListener('click', fullReset);
+    $('btn-play-again').addEventListener('click', () => {
+        $('modal').classList.remove('active');
+        startGame();
+    });
+
+    // Keyboard controls
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT') return;
+        const k = e.key.toLowerCase();
+        if (k === 'q') { adjustBid(-0.01); e.preventDefault(); }
+        else if (k === 'a') { adjustBid(0.01); e.preventDefault(); }
+        else if (k === 'e') { adjustAsk(-0.01); e.preventDefault(); }
+        else if (k === 'd') { adjustAsk(0.01); e.preventDefault(); }
+        else if (k === 'w') { adjustBid(-0.01); adjustAsk(0.01); e.preventDefault(); }
+        else if (k === 's') { adjustBid(0.01); adjustAsk(-0.01); e.preventDefault(); }
+        else if (k === ' ') {
+            if (!state.running) startGame();
+            else if (state.paused) startGame();
+            else pauseGame();
+            e.preventDefault();
+        }
+    });
+
+    // Initial render
+    resizeCanvas();
+    updateStats();
+    </script>
+</body>
+</html>
