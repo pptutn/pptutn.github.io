@@ -433,6 +433,20 @@
             margin-bottom: 0.5rem;
         }
 
+        .modal.gameover h2 { font-size: 2.4rem; margin-bottom: 0.5rem; letter-spacing: 0.02em; }
+        .modal.gameover .final-score {
+            font-size: 3rem; font-weight: 700; text-align: center;
+            margin: 1rem 0; letter-spacing: 0.1em;
+        }
+        .modal.gameover .final-score .you { color: var(--accent); }
+        .modal.gameover .final-score .cpu { color: var(--red); }
+        .modal.gameover .tagline { text-align: center; opacity: 0.7; margin-bottom: 1rem; font-size: 0.9rem; }
+        .modal.gameover #modal-outcome,
+        .modal.gameover #modal-final,
+        .modal.gameover #modal-reveal { display: none; }
+        .modal.gameover .gameover-body { display: block; }
+        .gameover-body { display: none; }
+
         .modal .outcome {
             font-family: 'JetBrains Mono', monospace;
             font-size: 1rem;
@@ -577,6 +591,14 @@
             <div class="outcome" id="modal-outcome">—</div>
             <div class="final-count" id="modal-final">0</div>
             <div class="reveal" id="modal-reveal"></div>
+            <div class="gameover-body">
+                <div class="final-score">
+                    <span class="you" id="go-you">0</span>
+                    <span style="opacity:0.4"> — </span>
+                    <span class="cpu" id="go-cpu">0</span>
+                </div>
+                <div class="tagline" id="go-tagline">—</div>
+            </div>
             <button class="btn primary" id="btn-next" style="width:100%">Next round</button>
         </div>
     </div>
@@ -630,6 +652,23 @@
     // ------------------------------------------------------------------
     // Setup
     // ------------------------------------------------------------------
+    // Benford-weighted digit: leading-digit distribution P(d)=log10(1+1/d)
+    // for d=1..9, with 0 given a small tail weight. Real-world serials skew
+    // toward lower digits rather than being uniform.
+    const BENFORD_CDF = (() => {
+        const w = [0.046, 0.301, 0.176, 0.125, 0.097, 0.079, 0.067, 0.058, 0.051, 0.046];
+        const sum = w.reduce((a, b) => a + b, 0);
+        const cdf = [];
+        let acc = 0;
+        for (const p of w) { acc += p / sum; cdf.push(acc); }
+        return cdf;
+    })();
+    function benfordDigit() {
+        const r = Math.random();
+        for (let d = 0; d < 10; d++) if (r < BENFORD_CDF[d]) return d;
+        return 9;
+    }
+
     function newGame() {
         state.scoreYou = 0;
         state.scoreCpu = 0;
@@ -640,8 +679,8 @@
     }
 
     function startRound(firstActor) {
-        state.yourHand = Array.from({ length: HAND_LEN }, () => Math.floor(Math.random() * 10));
-        state.cpuHand = Array.from({ length: HAND_LEN }, () => Math.floor(Math.random() * 10));
+        state.yourHand = Array.from({ length: HAND_LEN }, benfordDigit);
+        state.cpuHand  = Array.from({ length: HAND_LEN }, benfordDigit);
         state.history = [];
         state.currentBid = null;
         state.turn = firstActor;
@@ -890,7 +929,6 @@
 
         // Modal
         const modal = $('modal');
-        $('modal-title').textContent = winner === 'you' ? 'You win!' : state.cpuName + ' wins';
         $('modal-outcome').textContent = bidderWon
             ? `Bid of ${bid.qty} × ${bid.face} was good — actual count ${actual}`
             : `Bid of ${bid.qty} × ${bid.face} was too high — actual count ${actual}`;
@@ -907,11 +945,19 @@
         // Game over?
         const gameOver = state.scoreYou >= WIN_TARGET || state.scoreCpu >= WIN_TARGET;
         const btn = $('btn-next');
+        const modalEl = modal.querySelector('.modal');
+        modalEl.classList.toggle('gameover', gameOver);
         if (gameOver) {
             const iWon = state.scoreYou > state.scoreCpu;
-            $('modal-title').textContent = iWon ? 'Game over — you win!' : 'Game over — ' + state.cpuName + ' wins';
-            btn.textContent = 'New game';
+            $('modal-title').textContent = iWon ? '🏆 YOU WIN!' : 'DEFEAT';
+            $('go-you').textContent = state.scoreYou;
+            $('go-cpu').textContent = state.scoreCpu;
+            $('go-tagline').textContent = iWon
+                ? `First to ${WIN_TARGET}. ${state.cpuName} folds.`
+                : `${state.cpuName} took it ${state.scoreCpu}–${state.scoreYou}.`;
+            btn.textContent = 'Play again';
         } else {
+            $('modal-title').textContent = winner === 'you' ? 'You win!' : state.cpuName + ' wins';
             btn.textContent = 'Next round';
         }
 
