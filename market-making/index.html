@@ -23,6 +23,7 @@
             --red: #ef4444;
             --red-dim: rgba(239, 68, 68, 0.15);
             --amber: #f59e0b;
+            --radius-full: 9999px;
         }
 
         html, body { overscroll-behavior: none; }
@@ -150,7 +151,7 @@
         .legend-item { display: flex; align-items: center; gap: 0.3rem; }
         .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
 
-        /* Controls: primary spread controls */
+        /* ── Unified quote controls panel ── */
         .quotes {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -158,8 +159,59 @@
             padding: 0.9rem;
             margin-bottom: 0.75rem;
             display: grid;
-            gap: 0.6rem;
+            gap: 0.5rem;
         }
+
+        /* Mid row */
+        .mid-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .mid-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            padding: 0.45rem 0.65rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            min-width: 54px;
+            text-align: center;
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .mid-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent);
+            flex: 1;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .btn-lock-mid {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            padding: 0.3rem 0.65rem;
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+            white-space: nowrap;
+            letter-spacing: 0.04em;
+        }
+        .btn-lock-mid:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-lock-mid:active { transform: scale(0.95); }
+        .btn-lock-mid.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
 
         .quote-row {
             display: grid;
@@ -182,6 +234,13 @@
         .quote-tag.bid { background: var(--green-dim); color: var(--green); }
         .quote-tag.ask { background: var(--red-dim); color: var(--red); }
 
+        /* Price display + inline edit wrapper */
+        .quote-price-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .quote-price {
             font-family: 'JetBrains Mono', monospace;
             font-size: 1.25rem;
@@ -189,9 +248,41 @@
             text-align: center;
             font-variant-numeric: tabular-nums;
             padding: 0.45rem 0;
+            cursor: pointer;
+            user-select: none;
         }
         .quote-price.bid { color: var(--green); }
         .quote-price.ask { color: var(--red); }
+
+        .quote-price-input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            background: transparent;
+            outline: none;
+            border: none;
+            border-bottom: 1px solid var(--accent);
+            padding: 0.45rem 0;
+            width: 6rem;
+            display: none;
+            -moz-appearance: textfield;
+        }
+        .quote-price-input::-webkit-outer-spin-button,
+        .quote-price-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .quote-price-input.bid { color: var(--green); }
+        .quote-price-input.ask { color: var(--red); }
+
+        /* Live spread separator line */
+        .spread-sep {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin: -0.1rem 0;
+            letter-spacing: 0.02em;
+        }
 
         .btn-step {
             width: 48px; height: 48px;
@@ -210,7 +301,7 @@
         .btn-step:active { transform: scale(0.92); }
         .btn-step:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        /* Spread: big primary control */
+        /* ── Spread panel ── */
         .spread-panel {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -220,70 +311,53 @@
         }
 
         .spread-label {
-            display: flex;
-            justify-content: space-between;
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.7rem;
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.6rem;
         }
 
         .spread-value { color: var(--accent); font-size: 0.95rem; font-weight: 600; }
 
-        .spread-btns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
+        .spread-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.6rem;
+        }
+        .spread-slider-row input[type="range"] { flex: 1; }
+
+        .spread-presets {
+            display: flex;
+            gap: 0.4rem;
         }
 
-        .btn-spread {
-            height: 54px;
+        .btn-preset {
+            height: 32px;
+            padding: 0 0.75rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
             background: var(--surface-raised);
             border: 1px solid var(--border);
             color: var(--text);
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.35rem;
             user-select: none;
-        }
-
-        .btn-spread:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }
-        .btn-spread:active { transform: scale(0.96); }
-        .btn-spread:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .btn-spread .sub {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            font-weight: 500;
         }
+        .btn-preset:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+        .btn-preset:active { transform: scale(0.95); }
+        .btn-preset:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        .btn-spread.tighten { border-color: rgba(34, 211, 238, 0.2); }
-        .btn-spread.widen { border-color: rgba(245, 158, 11, 0.2); }
-
-        /* Skew (shift both sides) */
+        /* ── Skew panel ── */
         .skew-panel {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 0.75rem 0.9rem;
             margin-bottom: 0.75rem;
-        }
-
-        .skew-row {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            gap: 0.5rem;
         }
 
         .skew-label {
@@ -293,24 +367,105 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
             text-align: center;
+            margin-bottom: 0.5rem;
         }
 
-        .btn-skew {
-            height: 48px;
-            background: var(--surface-raised);
-            border: 1px solid var(--border);
-            color: var(--text);
-            font-family: 'Inter', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 500;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.15s;
+        .skew-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .skew-anchor {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            white-space: nowrap;
             user-select: none;
         }
-        .btn-skew:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-dim); }
-        .btn-skew:active { transform: scale(0.96); }
-        .btn-skew:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .skew-slider-wrap { flex: 1; }
+        .skew-slider-wrap input[type="range"] { width: 100%; }
+
+        .skew-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        /* Range slider base styles */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -6px;
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); }
+        input[type="range"]::-moz-range-track {
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            cursor: pointer;
+        }
+
+        /* ── Keyboard shortcut hints (desktop only) ── */
+        .kbd-hints {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+        }
+        .kbd-hints .hint-group {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .kbd-hints .hint-sep {
+            color: var(--border);
+            margin: 0 0.15rem;
+        }
+        kbd {
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.1rem 0.35rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
 
         /* Footer actions */
         .actions {
@@ -492,8 +647,11 @@
             .actions .size-wrap { grid-column: 1 / -1; justify-content: center; height: 44px; }
             h1 { font-size: 1.3rem; }
             .quote-tag { min-width: 44px; font-size: 0.66rem; }
+            .mid-tag { min-width: 44px; font-size: 0.66rem; }
             .btn-step { width: 44px; height: 44px; }
             .quote-price { font-size: 1.1rem; }
+            .quote-price-input { font-size: 1.1rem; }
+            .kbd-hints { display: none; }
         }
     </style>
 </head>
@@ -539,42 +697,78 @@
             </div>
         </div>
 
+        <!-- Unified quote controls panel -->
         <div class="quotes">
+            <!-- Mid row -->
+            <div class="mid-row">
+                <span class="mid-tag">Mid</span>
+                <span class="mid-price" id="mid-px">100.00</span>
+                <button class="btn-lock-mid" id="btn-lock-mid">Lock Mid</button>
+            </div>
+
+            <!-- Bid row -->
             <div class="quote-row">
                 <span class="quote-tag bid">Bid</span>
-                <span class="quote-price bid" id="bid-px">99.90</span>
+                <div class="quote-price-wrap">
+                    <span class="quote-price bid" id="bid-px">99.90</span>
+                    <input type="number" class="quote-price-input bid" id="bid-input" step="0.01">
+                </div>
                 <button class="btn-step" data-act="bid-down">−</button>
                 <button class="btn-step" data-act="bid-up">+</button>
             </div>
+
+            <!-- Live spread separator -->
+            <div class="spread-sep" id="spread-indicator">── spread: $0.20 ──</div>
+
+            <!-- Ask row -->
             <div class="quote-row">
                 <span class="quote-tag ask">Ask</span>
-                <span class="quote-price ask" id="ask-px">100.10</span>
+                <div class="quote-price-wrap">
+                    <span class="quote-price ask" id="ask-px">100.10</span>
+                    <input type="number" class="quote-price-input ask" id="ask-input" step="0.01">
+                </div>
                 <button class="btn-step" data-act="ask-down">−</button>
                 <button class="btn-step" data-act="ask-up">+</button>
             </div>
         </div>
 
+        <!-- Spread panel -->
         <div class="spread-panel">
-            <div class="spread-label">
-                <span>Spread</span>
+            <div class="spread-label">Spread</div>
+            <div class="spread-slider-row">
+                <input type="range" id="spread-slider" min="0.02" max="2.00" step="0.01" value="0.20">
                 <span class="spread-value" id="spread-val">$0.20</span>
             </div>
-            <div class="spread-btns">
-                <button class="btn-spread tighten" id="btn-tighten">
-                    <span>Tighten →←</span>
-                </button>
-                <button class="btn-spread widen" id="btn-widen">
-                    <span>Widen ←→</span>
-                </button>
+            <div class="spread-presets">
+                <button class="btn-preset" data-spread="0.01">1¢</button>
+                <button class="btn-preset" data-spread="0.05">5¢</button>
+                <button class="btn-preset" data-spread="0.10">10¢</button>
+                <button class="btn-preset" data-spread="0.20">20¢</button>
             </div>
         </div>
 
+        <!-- Skew panel -->
         <div class="skew-panel">
-            <div class="skew-row">
-                <button class="btn-skew" id="btn-skew-down">Shift Down ↓</button>
-                <span class="skew-label">Skew</span>
-                <button class="btn-skew" id="btn-skew-up">Shift Up ↑</button>
+            <div class="skew-label">Skew</div>
+            <div class="skew-slider-row">
+                <span class="skew-anchor">Bid ←</span>
+                <div class="skew-slider-wrap">
+                    <input type="range" id="skew-slider" min="-10" max="10" step="1" value="0">
+                </div>
+                <span class="skew-anchor">→ Ask</span>
             </div>
+            <div class="skew-status" id="skew-status">Skew: neutral</div>
+        </div>
+
+        <!-- Keyboard shortcut legend (desktop only) -->
+        <div class="kbd-hints">
+            <div class="hint-group"><kbd>W</kbd>/<kbd>S</kbd> widen/tighten</div>
+            <span class="hint-sep">·</span>
+            <div class="hint-group"><kbd>Q</kbd>/<kbd>A</kbd> bid −/+</div>
+            <span class="hint-sep">·</span>
+            <div class="hint-group"><kbd>E</kbd>/<kbd>D</kbd> ask −/+</div>
+            <span class="hint-sep">·</span>
+            <div class="hint-group"><kbd>Space</kbd> pause</div>
         </div>
 
         <div class="actions">
@@ -655,7 +849,12 @@
         size: 1,
         loop: null,
         nextTickAt: 0,
+        skewOffset: 0,
     };
+
+    // UI-only state
+    let midLocked = false;
+    let skewPrev = 0;
 
     // ------------------------------------------------------------------
     // DOM
@@ -729,6 +928,29 @@
         $('ask-px').textContent = state.ask.toFixed(2);
         const spread = state.ask - state.bid;
         $('spread-val').textContent = '$' + spread.toFixed(2);
+        // Extended UI updates
+        const mid = (state.bid + state.ask) / 2;
+        $('mid-px').textContent = mid.toFixed(2);
+        $('spread-indicator').textContent = '── spread: $' + spread.toFixed(2) + ' ──';
+        const slider = $('spread-slider');
+        if (slider) slider.value = spread.toFixed(2);
+        updateSkewStatus();
+    }
+
+    function updateSkewStatus() {
+        const el = $('skew-status');
+        if (!el) return;
+        const offset = state.skewOffset || 0;
+        if (Math.abs(offset) < 0.005) {
+            el.textContent = 'Skew: neutral';
+            el.style.color = '';
+        } else if (offset > 0) {
+            el.textContent = 'Skew: +' + offset.toFixed(2) + ' ↑';
+            el.style.color = 'var(--green)';
+        } else {
+            el.textContent = 'Skew: ' + offset.toFixed(2) + ' ↓';
+            el.style.color = 'var(--red)';
+        }
     }
 
     // ------------------------------------------------------------------
@@ -766,11 +988,14 @@
         state.inventory = 0;
         state.maxAbsInv = 0;
         state.tradeCount = 0;
+        state.skewOffset = 0;
         $('trade-log').innerHTML = '';
         // Re-centre quotes around the new fair
         const mid = state.lastClose;
         state.bid = roundPx(mid - 0.10);
         state.ask = roundPx(mid + 0.10);
+        skewPrev = 0;
+        $('skew-slider').value = 0;
         renderQuotes();
     }
 
@@ -1047,6 +1272,8 @@
     // ------------------------------------------------------------------
     // Controls
     // ------------------------------------------------------------------
+
+    // Step buttons (bid/ask −/+)
     document.querySelectorAll('[data-act]').forEach(btn => {
         btn.addEventListener('click', () => {
             const act = btn.dataset.act;
@@ -1058,10 +1285,99 @@
         });
     });
 
-    $('btn-tighten').addEventListener('click', tighten);
-    $('btn-widen').addEventListener('click', widen);
-    $('btn-skew-up').addEventListener('click', skewUp);
-    $('btn-skew-down').addEventListener('click', skewDown);
+    // Lock Mid toggle
+    $('btn-lock-mid').addEventListener('click', () => {
+        midLocked = !midLocked;
+        $('btn-lock-mid').classList.toggle('active', midLocked);
+        $('btn-lock-mid').textContent = midLocked ? 'Mid Locked' : 'Lock Mid';
+    });
+
+    // Inline price editing
+    function makeEditable(spanEl, inputEl, side) {
+        if (inputEl.style.display === 'block') return;
+        const captureMid = (state.bid + state.ask) / 2;
+        spanEl.style.display = 'none';
+        inputEl.style.display = 'block';
+        inputEl.value = (side === 'bid' ? state.bid : state.ask).toFixed(2);
+        inputEl.focus();
+        inputEl.select();
+
+        function commit() {
+            inputEl.style.display = 'none';
+            spanEl.style.display = '';
+            const val = parseFloat(inputEl.value);
+            if (!isNaN(val)) {
+                if (midLocked) {
+                    if (side === 'bid') {
+                        state.bid = roundPx(val);
+                        state.ask = roundPx(2 * captureMid - val);
+                    } else {
+                        state.ask = roundPx(val);
+                        state.bid = roundPx(2 * captureMid - val);
+                    }
+                } else {
+                    if (side === 'bid') state.bid = roundPx(val);
+                    else state.ask = roundPx(val);
+                }
+            }
+            renderQuotes();
+        }
+
+        inputEl.addEventListener('blur', commit, { once: true });
+        inputEl.addEventListener('keydown', function onKey(e) {
+            if (e.key === 'Enter') {
+                inputEl.removeEventListener('keydown', onKey);
+                inputEl.blur();
+            } else if (e.key === 'Escape') {
+                inputEl.removeEventListener('blur', commit);
+                inputEl.removeEventListener('keydown', onKey);
+                inputEl.style.display = 'none';
+                spanEl.style.display = '';
+                renderQuotes();
+            }
+        });
+    }
+
+    $('bid-px').addEventListener('click', () => makeEditable($('bid-px'), $('bid-input'), 'bid'));
+    $('ask-px').addEventListener('click', () => makeEditable($('ask-px'), $('ask-input'), 'ask'));
+
+    // Spread slider — adjusts symmetrically around current mid
+    $('spread-slider').addEventListener('input', (e) => {
+        const newSpread = parseFloat(e.target.value);
+        const mid = (state.bid + state.ask) / 2;
+        state.bid = roundPx(mid - newSpread / 2);
+        state.ask = roundPx(mid + newSpread / 2);
+        renderQuotes();
+    });
+
+    // Preset spread pill buttons
+    document.querySelectorAll('[data-spread]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const spread = parseFloat(btn.dataset.spread);
+            const mid = (state.bid + state.ask) / 2;
+            state.bid = roundPx(mid - spread / 2);
+            state.ask = roundPx(mid + spread / 2);
+            renderQuotes();
+        });
+    });
+
+    // Skew slider — relative drag, resets thumb to center on release
+    $('skew-slider').addEventListener('input', (e) => {
+        const newVal = parseInt(e.target.value, 10);
+        const delta = roundPx((newVal - skewPrev) * PRICE_STEP);
+        skewPrev = newVal;
+        state.bid = roundPx(state.bid + delta);
+        state.ask = roundPx(state.ask + delta);
+        state.skewOffset = roundPx((state.skewOffset || 0) + delta);
+        renderQuotes();
+    });
+
+    ['mouseup', 'touchend'].forEach(evt => {
+        $('skew-slider').addEventListener(evt, () => {
+            skewPrev = 0;
+            $('skew-slider').value = 0;
+        });
+    });
 
     $('size-up').addEventListener('click', () => {
         state.size = Math.min(5, state.size + 1);
